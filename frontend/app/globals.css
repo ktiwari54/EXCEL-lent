@@ -4,39 +4,124 @@
 
 :root {
   color-scheme: light;
+  --sidebar: #0b1f3a;
+  --sidebar-2: #0e2748;
+  --brand: #1f4e79;
+  --brand-bright: #2563eb;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(38, 118, 186, 0.18), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(16, 185, 129, 0.08), transparent);
-  min-height: 100vh;
+  @apply bg-[#f4f7fb] text-slate-900 antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 
 @layer components {
-  .card {
-    @apply rounded-2xl border border-slate-200/80 bg-white/90 shadow-card backdrop-blur;
+  .app-shell {
+    @apply flex h-screen w-full overflow-hidden bg-[#f4f7fb];
   }
+
+  .sidebar {
+    @apply flex w-[260px] shrink-0 flex-col bg-[#0b1f3a] text-white;
+  }
+
+  .sidebar-scroll {
+    @apply flex-1 overflow-y-auto px-3 pb-6 pt-2;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .nav-section {
+    @apply mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400;
+  }
+
+  .nav-item {
+    @apply mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-slate-300 transition;
+  }
+
+  .nav-item:hover {
+    @apply bg-white/10 text-white;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-[#2563eb] text-white shadow-lg shadow-blue-900/30;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)];
+  }
+
+  .card-soft {
+    @apply rounded-2xl border border-slate-100 bg-white;
+  }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
       disabled:cursor-not-allowed disabled:opacity-50;
   }
+
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-[#2563eb] text-white hover:bg-blue-700;
   }
+
   .btn-secondary {
     @apply btn border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
   }
-  .btn-accent {
-    @apply btn bg-accent-500 text-white hover:bg-accent-600;
+
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
   }
+
+  .btn-soft {
+    @apply btn border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white;
+  }
+
   .input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm
-      focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm
+      placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10;
   }
+
   .label {
-    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition;
+  }
+
+  .chip-soft {
+    @apply chip border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700;
+  }
+
+  .kpi-card {
+    @apply rounded-2xl border border-slate-100 bg-white p-4 shadow-sm;
+  }
+
+  .action-tile {
+    @apply flex h-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition
+      hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-md;
+  }
+
+  .step-card {
+    @apply flex min-w-0 flex-1 items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm;
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  .scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
   }
 }

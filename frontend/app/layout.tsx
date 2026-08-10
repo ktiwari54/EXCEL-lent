@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EXCEL-lent — Data Analyst Engine",
-  description: "Upload your data. Tell us what you need. Get the analysis. Your data analyst, built into Excel.",
+  title: "Data Analyst Engine — EXCEL-lent",
+  description: "Your Data. Our Intelligence. Upload. Ask. Analyze.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="h-screen overflow-hidden">{children}</body>
     </html>
   );
 }
