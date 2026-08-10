@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from app.config import get_settings
+from app.modules.json_safe import json_safe
 from app.modules.profiler import profile_dataframe
 from app.modules.relationship_detection import detect_relationships
 from app.modules.workbook_parser import ParseError, parse_upload, suggest_dataset_name
@@ -178,12 +179,14 @@ class DatasetManager:
             self._meta[ds["id"]]["batch_relationships"] = relationships
         self._save_index()
 
-        return {
-            "upload_id": upload_id,
-            "filename": filename,
-            "datasets": [self.get_dataset(d["id"]) for d in created],
-            "relationships": relationships,
-        }
+        return json_safe(
+            {
+                "upload_id": upload_id,
+                "filename": filename,
+                "datasets": [self.get_dataset(d["id"]) for d in created],
+                "relationships": relationships,
+            }
+        )
 
     def _register_dataset(
         self,
@@ -280,7 +283,7 @@ class DatasetManager:
         }
         if include_preview:
             result["preview"] = m.get("preview") or _safe_preview(self.get_raw(dataset_id))
-        return result
+        return json_safe(result)
 
     def get_raw(self, dataset_id: str) -> pd.DataFrame:
         return self._load_frame(dataset_id, "raw").copy()
@@ -366,14 +369,16 @@ class DatasetManager:
         chunk = df.iloc[start : start + page_size]
         from app.modules.profiler import _preview_records
 
-        return {
-            "page": page,
-            "page_size": page_size,
-            "total_rows": total,
-            "total_pages": max(1, (total + page_size - 1) // page_size),
-            "rows": _preview_records(chunk, limit=page_size),
-            "layer": layer,
-        }
+        return json_safe(
+            {
+                "page": page,
+                "page_size": page_size,
+                "total_rows": total,
+                "total_pages": max(1, (total + page_size - 1) // page_size),
+                "rows": _preview_records(chunk, limit=page_size),
+                "layer": layer,
+            }
+        )
 
 
 def _safe_preview(df: pd.DataFrame) -> list:

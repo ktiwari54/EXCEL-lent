@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from app.modules.health_score import compute_health_score
+from app.modules.json_safe import json_safe
 from app.modules.quality_engine import analyze_quality
 from app.modules.role_detection import detect_role
 from app.modules.type_detection import detect_column_type
@@ -103,7 +104,7 @@ def profile_dataframe(df: pd.DataFrame) -> dict[str, Any]:
     date_fields = sum(1 for c in column_profiles if c["data_type"] in ("date", "datetime") or c["role"] == "date_dimension")
     category_fields = sum(1 for c in column_profiles if c["data_type"] == "category" or c["role"] == "dimension")
 
-    return {
+    result = {
         "rows": rows,
         "columns": cols,
         "column_profiles": column_profiles,
@@ -121,42 +122,17 @@ def profile_dataframe(df: pd.DataFrame) -> dict[str, Any]:
         },
         "preview": _preview_records(df, 50),
     }
+    return json_safe(result)
 
 
 def _samples(s: pd.Series, n: int = 5) -> list[Any]:
     vals = s.dropna().head(n).tolist()
-    out = []
-    for v in vals:
-        if hasattr(v, "item"):
-            try:
-                out.append(v.item())
-                continue
-            except Exception:
-                pass
-        if hasattr(v, "isoformat"):
-            try:
-                out.append(v.isoformat())
-                continue
-            except Exception:
-                pass
-        out.append(v if not (isinstance(v, float) and np.isnan(v)) else None)
-    return out
+    return [json_safe(v) for v in vals]
 
 
 def _preview_records(df: pd.DataFrame, limit: int = 50) -> list[dict[str, Any]]:
     out = df.head(limit).copy()
-    out = out.where(pd.notnull(out), None)
+    # Replace NA / NaN / NaT with None before to_dict
+    out = out.astype(object).where(pd.notnull(out), None)
     records = out.to_dict(orient="records")
-    for row in records:
-        for k, v in list(row.items()):
-            if hasattr(v, "item"):
-                try:
-                    row[k] = v.item()
-                except Exception:
-                    row[k] = str(v)
-            elif hasattr(v, "isoformat"):
-                try:
-                    row[k] = v.isoformat()
-                except Exception:
-                    row[k] = str(v)
-    return records
+    return [json_safe(row) for row in records]

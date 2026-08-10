@@ -4,22 +4,31 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import clsx from "clsx";
 import {
   AlertTriangle,
+  ArrowRight,
+  BarChart3,
   Bell,
+  Calculator,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   Database,
   FileSpreadsheet,
+  FileText,
   Filter,
   HelpCircle,
   Home,
   Layers,
   LayoutDashboard,
+  MessageSquare,
+  Monitor,
+  Scale,
   Search,
   Settings,
   Sparkles,
   Table2,
   Trash2,
   Upload,
+  Wand2,
   X,
 } from "lucide-react";
 import {
@@ -27,6 +36,7 @@ import {
   Dataset,
   DatasetListItem,
   InspectResult,
+  TaskSelection,
   deleteDataset,
   getDataset,
   healthCheck,
@@ -39,29 +49,9 @@ import {
 } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
 import { LoadingOverlay } from "@/components/ui";
+import { TaskConfigurePlaceholder, TaskSelectionView } from "@/components/TaskSelection";
 
-type View = "home" | "upload" | "sheets" | "profile" | "library" | "soon" | "next";
-
-const SOON_ITEMS = new Set([
-  "ask",
-  "calculate",
-  "compare",
-  "lookup",
-  "clean",
-  "summarize",
-  "pivot",
-  "charts",
-  "dashboard",
-  "reports",
-  "sales",
-  "inventory",
-  "finance",
-  "hr",
-  "marketing",
-  "crm",
-  "templates",
-  "workbooks",
-]);
+type View = "home" | "upload" | "sheets" | "profile" | "library" | "soon" | "tasks" | "configure";
 
 export default function HomePage() {
   const [view, setView] = useState<View>("home");
@@ -90,6 +80,8 @@ export default function HomePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
   const [renameValue, setRenameValue] = useState("");
+  const [preselectTaskId, setPreselectTaskId] = useState<string | null>(null);
+  const [taskSelection, setTaskSelection] = useState<TaskSelection | null>(null);
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -102,7 +94,33 @@ export default function HomePage() {
   useEffect(() => {
     healthCheck().then(setApiOk);
     refreshLibrary();
+    // restore last dataset for Task step after refresh
+    const lastId = typeof window !== "undefined" ? sessionStorage.getItem("excellent_active_id") : null;
+    if (lastId) {
+      getDataset(lastId)
+        .then((ds) => {
+          setActive(ds);
+          setRenameValue(ds.name);
+        })
+        .catch(() => sessionStorage.removeItem("excellent_active_id"));
+    }
   }, [refreshLibrary]);
+
+  async function goToTasks(dataset?: Dataset | null, taskId?: string | null) {
+    let ds = dataset || active;
+    if (!ds && library[0]) {
+      ds = (await openDataset(library[0].id, false)) || null;
+    }
+    if (!ds) {
+      setError("Upload and profile a dataset first, then choose a task.");
+      go("upload", "upload");
+      return;
+    }
+    setError(null);
+    setPreselectTaskId(taskId || null);
+    setView("tasks");
+    setNav("tasks");
+  }
 
   async function loadPreview(id: string, p = page, q = search) {
     const data = await previewDataset(id, {
@@ -118,7 +136,7 @@ export default function HomePage() {
     setPage(data.page);
   }
 
-  async function openDataset(id: string) {
+  async function openDataset(id: string, goProfile = true) {
     setLoading(true);
     setLoadingLabel("Loading dataset…");
     setError(null);
@@ -130,11 +148,24 @@ export default function HomePage() {
       setSearch("");
       setSortBy(null);
       setPage(1);
-      await loadPreview(id, 1, "");
-      setView("profile");
-      setNav("explore");
+      sessionStorage.setItem("excellent_active_id", id);
+      try {
+        await loadPreview(id, 1, "");
+      } catch (previewErr) {
+        // profile can still show without preview
+        console.warn(previewErr);
+        setPreviewRows(ds.preview || []);
+        setTotalRows(ds.rows || 0);
+        setTotalPages(1);
+      }
+      if (goProfile) {
+        setView("profile");
+        setNav("explore");
+      }
+      return ds;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load dataset");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -180,7 +211,15 @@ export default function HomePage() {
       const result = await importFile(pendingFile, selectedSheets, names);
       await refreshLibrary();
       const first = result.datasets[0];
-      if (first) await openDataset(first.id);
+      if (!first) {
+        setError("Import finished but no dataset was created. Try another sheet.");
+        return;
+      }
+      const ds = await openDataset(first.id, true);
+      if (!ds) {
+        setError("Dataset was saved but the profile screen failed to load. Open it from My Data.");
+        go("library", "sources");
+      }
       setPendingFile(null);
       setInspect(null);
     } catch (e) {
@@ -232,6 +271,10 @@ export default function HomePage() {
     setNav(navKey);
   }
 
+  function openTaskFromNav(taskId: string) {
+    goToTasks(active, taskId);
+  }
+
   const headers = useMemo(() => {
     if (previewRows[0]) return Object.keys(previewRows[0]);
     return active?.headers || [];
@@ -262,7 +305,12 @@ export default function HomePage() {
             icon={<Database className="h-4 w-4" />}
             label="Explore Data"
           />
-          <NavBtn active={nav === "ask"} onClick={() => goSoon("Ask & Analyze", "ask")} icon={<Sparkles className="h-4 w-4" />} label="Ask & Analyze" soon />
+          <NavBtn
+            active={nav === "ask" || nav === "tasks"}
+            onClick={() => goToTasks(active)}
+            icon={<MessageSquare className="h-4 w-4" />}
+            label="Ask & Analyze"
+          />
 
           <p className="nav-section">Analyze</p>
           {[
@@ -276,7 +324,13 @@ export default function HomePage() {
             ["Dashboard", "dashboard"],
             ["Reports", "reports"],
           ].map(([label, key]) => (
-            <NavBtn key={key} active={nav === key} onClick={() => goSoon(label, key)} icon={<ChevronRight className="h-3.5 w-3.5 opacity-50" />} label={label} soon />
+            <NavBtn
+              key={key}
+              active={nav === key}
+              onClick={() => openTaskFromNav(key)}
+              icon={<ChevronRight className="h-3.5 w-3.5 opacity-50" />}
+              label={label}
+            />
           ))}
 
           <p className="nav-section">Solutions</p>
@@ -300,7 +354,7 @@ export default function HomePage() {
         <div className="border-t border-white/10 px-4 py-3">
           <div className={clsx("flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium", apiOk ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300")}>
             <span className={clsx("h-2 w-2 rounded-full", apiOk ? "bg-emerald-400" : "bg-rose-400")} />
-            {apiOk ? "Engine online · Step 1" : "API offline"}
+            {apiOk ? "Engine online · Step 1–2" : "API offline"}
           </div>
         </div>
       </aside>
@@ -339,11 +393,42 @@ export default function HomePage() {
 
           {/* Stage indicator */}
           <div className="mb-5 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-            <span className="rounded-full bg-blue-600 px-3 py-1 text-white">Step 1 · Upload & Profile</span>
-            <span className="text-slate-300">→</span>
-            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-500">Step 2 · Tasks (soon)</span>
-            <span className="text-slate-300">→</span>
-            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-500">Step 3 · Analysis (soon)</span>
+            <button
+              type="button"
+              onClick={() => (active ? go("profile", "explore") : go("upload", "upload"))}
+              className={clsx(
+                "rounded-full px-3 py-1",
+                view === "tasks" || view === "configure"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-blue-600 text-white"
+              )}
+            >
+              1. Upload Data
+              {(view === "tasks" || view === "configure" || view === "profile") && " ✓"}
+            </button>
+            <span className="text-slate-300">↓</span>
+            <button
+              type="button"
+              onClick={() => goToTasks()}
+              className={clsx(
+                "rounded-full px-3 py-1",
+                view === "tasks" ? "bg-blue-600 text-white" : view === "configure" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-500"
+              )}
+            >
+              2. Choose Task
+              {view === "configure" && " ✓"}
+            </button>
+            <span className="text-slate-300">↓</span>
+            <span
+              className={clsx(
+                "rounded-full px-3 py-1",
+                view === "configure" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+              )}
+            >
+              3. Configure
+            </span>
+            <span className="text-slate-300">↓</span>
+            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-500">4–5. Generate / Result</span>
           </div>
 
           {view === "home" && (
@@ -351,6 +436,7 @@ export default function HomePage() {
               libraryCount={library.length}
               onUpload={() => go("upload", "upload")}
               onLibrary={() => go("library", "sources")}
+              onTasks={() => goToTasks()}
               recent={library.slice(0, 3)}
               onOpen={openDataset}
             />
@@ -441,7 +527,7 @@ export default function HomePage() {
                 const ds = await setRelationshipStatus(active.id, label, status);
                 setActive(ds);
               }}
-              onContinue={() => go("next", "home")}
+              onContinue={() => goToTasks(active)}
               reloadSort={async () => {
                 setLoading(true);
                 try {
@@ -453,28 +539,31 @@ export default function HomePage() {
             />
           )}
 
-          {view === "soon" && (
-            <ComingSoon label={soonLabel} onBack={() => go("home", "home")} onUpload={() => go("upload", "upload")} />
+          {view === "tasks" && (
+            <TaskSelectionView
+              dataset={active}
+              library={library}
+              preselectTaskId={preselectTaskId}
+              onBack={() => (active ? go("profile", "explore") : go("home", "home"))}
+              onChangeDataset={() => go("library", "sources")}
+              onStarted={(selection) => {
+                setTaskSelection(selection);
+                setView("configure");
+                setNav(selection.task_id);
+              }}
+            />
           )}
 
-          {view === "next" && (
-            <section className="card mx-auto max-w-xl p-10 text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-              <h1 className="mt-4 text-2xl font-bold text-slate-900">Your data is ready</h1>
-              <p className="mt-2 text-slate-500">
-                Step 1 (Upload & Profiling) is complete. The Task Selection Engine comes next.
-              </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                <button className="btn-primary" onClick={() => active && openDataset(active.id)}>
-                  Back to profile
-                </button>
-                <button className="btn-secondary" onClick={() => go("home", "home")}>
-                  Home
-                </button>
-              </div>
-              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">Coming soon · Step 2</p>
-              <p className="mt-1 text-sm text-slate-500">What do you want to do? — Calculate, Compare, Dashboard…</p>
-            </section>
+          {view === "configure" && taskSelection && (
+            <TaskConfigurePlaceholder
+              selection={taskSelection}
+              onBack={() => goToTasks(active)}
+              onProfile={() => active && openDataset(active.id, true)}
+            />
+          )}
+
+          {view === "soon" && (
+            <ComingSoon label={soonLabel} onBack={() => go("home", "home")} onUpload={() => go("upload", "upload")} />
           )}
         </main>
       </div>
@@ -512,12 +601,14 @@ function HomeView({
   libraryCount,
   onUpload,
   onLibrary,
+  onTasks,
   recent,
   onOpen,
 }: {
   libraryCount: number;
   onUpload: () => void;
   onLibrary: () => void;
+  onTasks: () => void;
   recent: DatasetListItem[];
   onOpen: (id: string) => void;
 }) {
@@ -533,9 +624,9 @@ function HomeView({
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           {[
             { n: "1", title: "Upload Data", desc: "Upload Excel or CSV", active: true, onClick: onUpload, color: "bg-emerald-500" },
-            { n: "2", title: "Select Objective", desc: "Choose what you want to do", active: false, color: "bg-violet-500" },
-            { n: "3", title: "Configure", desc: "Select columns, filters and options", active: false, color: "bg-blue-500" },
-            { n: "4", title: "Get Results", desc: "Analysis, charts and insights", active: false, color: "bg-orange-500" },
+            { n: "2", title: "Choose Task", desc: "What do you want to do?", active: libraryCount > 0, onClick: onTasks, color: "bg-violet-500" },
+            { n: "3", title: "Configure", desc: "Select columns, filters and options", active: false, onClick: () => {}, color: "bg-blue-500" },
+            { n: "4", title: "Get Results", desc: "Analysis, charts and insights", active: false, onClick: () => {}, color: "bg-orange-500" },
           ].map((s) => (
             <button
               key={s.n}

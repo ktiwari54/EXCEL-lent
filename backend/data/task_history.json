@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "id": "ac8454c4-2f46-4f96-b55d-91798f2a639c",
+      "dataset_id": "e3e283a3-ab42-4806-982d-4284df9d3d47",
+      "dataset_name": "sales",
+      "task_id": "analyze",
+      "task_name": "Analyze My Data",
+      "category": "Analyze",
+      "configuration": {
+        "dataset_id": "e3e283a3-ab42-4806-982d-4284df9d3d47",
+        "dataset_name": "sales",
+        "task_id": "analyze",
+        "task_name": "Analyze My Data",
+        "task_category": "Analyze",
+        "objective": "Analyze My Data",
+        "secondary_dataset_ids": [],
+        "detected_fields": {
+          "measures": [
+            "Salesperson",
+            "Units",
+            "UnitPrice",
+            "Revenue",
+            "Cost"
+          ],
+          "dimensions": [
+            "Region",
+            "Country",
+            "Product",
+            "Category",
+            "Customer"
+          ],
+          "dates": [
+            "OrderDate"
+          ]
+        },
+        "notes": null,
+        "stage": "configure"
+      },
+      "result_ref": null,
+      "timestamp": "2026-08-10T09:23:21.828630+00:00"
+    }
+  ]
+}

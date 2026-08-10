@@ -81,13 +81,29 @@ def _parse_csv(content: bytes, filename: str) -> dict[str, Any]:
 
 
 def _parse_excel(content: bytes, filename: str) -> dict[str, Any]:
-    try:
-        xl = pd.ExcelFile(BytesIO(content))
-    except Exception as e:
-        raise ParseError(
-            "We couldn't open this Excel workbook.",
-            "The file may be corrupted or password-protected. Try saving a new copy as .xlsx.",
-        ) from e
+    lower = filename.lower()
+    # Legacy .xls needs xlrd; prefer clear guidance
+    if lower.endswith(".xls") and not lower.endswith(".xlsx") and not lower.endswith(".xlsm"):
+        try:
+            xl = pd.ExcelFile(BytesIO(content), engine="xlrd")
+        except Exception as e:
+            raise ParseError(
+                "We couldn't open this older .xls file.",
+                "Please open it in Excel and save it as .xlsx, then upload again.",
+            ) from e
+    else:
+        try:
+            xl = pd.ExcelFile(BytesIO(content), engine="openpyxl")
+        except Exception as e:
+            # fallback without engine pin
+            try:
+                xl = pd.ExcelFile(BytesIO(content))
+            except Exception as e2:
+                raise ParseError(
+                    "We couldn't open this Excel workbook.",
+                    "The file may be corrupted, password-protected, or not a real .xlsx file. "
+                    "Open it in Excel and use File → Save As → Excel Workbook (.xlsx).",
+                ) from e2
 
     sheets = []
     for name in xl.sheet_names:

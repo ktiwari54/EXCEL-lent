@@ -48,6 +48,8 @@ desktop.ini
 backend/uploads/
 backend/exports/
 backend/data/sessions/
+backend/data/library/
+!backend/data/library/.gitkeep
 *.xlsx~
 ~$*.xlsx
 

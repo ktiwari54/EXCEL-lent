@@ -3,11 +3,19 @@ from __future__ import annotations
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
+from fastapi.responses import JSONResponse
+
 from app.config import get_settings
 from app.modules.dataset_manager import manager
+from app.modules.json_safe import json_safe
 from app.modules.workbook_parser import ParseError
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets-step1"])
+
+
+def ok(data):
+    """Always return JSON-safe content (no NaN)."""
+    return JSONResponse(content=json_safe(data))
 
 
 class RenameBody(BaseModel):
@@ -57,7 +65,7 @@ async def inspect_upload(file: UploadFile = File(...)):
             },
         )
     try:
-        return manager.inspect_file(content, file.filename)
+        return ok(manager.inspect_file(content, file.filename))
     except Exception as e:
         raise _err(e) from e
 
@@ -95,11 +103,13 @@ async def import_upload(
         except Exception:
             name_map = {}
     try:
-        return manager.create_from_upload(
-            content,
-            file.filename,
-            sheet_names=sheet_list,
-            dataset_names=name_map,
+        return ok(
+            manager.create_from_upload(
+                content,
+                file.filename,
+                sheet_names=sheet_list,
+                dataset_names=name_map,
+            )
         )
     except Exception as e:
         raise _err(e) from e
@@ -107,13 +117,13 @@ async def import_upload(
 
 @router.get("")
 def list_datasets():
-    return {"datasets": manager.list_datasets()}
+    return ok({"datasets": manager.list_datasets()})
 
 
 @router.get("/{dataset_id}")
 def get_dataset(dataset_id: str):
     try:
-        return manager.get_dataset(dataset_id)
+        return ok(manager.get_dataset(dataset_id))
     except Exception as e:
         raise _err(e) from e
 
@@ -121,7 +131,7 @@ def get_dataset(dataset_id: str):
 @router.patch("/{dataset_id}")
 def rename_dataset(dataset_id: str, body: RenameBody):
     try:
-        return manager.rename(dataset_id, body.name)
+        return ok(manager.rename(dataset_id, body.name))
     except Exception as e:
         raise _err(e) from e
 
@@ -146,14 +156,16 @@ def preview_dataset(
     layer: str = "raw",
 ):
     try:
-        return manager.preview_page(
-            dataset_id,
-            page=page,
-            page_size=page_size,
-            search=search,
-            sort_by=sort_by,
-            sort_dir=sort_dir,
-            layer=layer,
+        return ok(
+            manager.preview_page(
+                dataset_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                sort_by=sort_by,
+                sort_dir=sort_dir,
+                layer=layer,
+            )
         )
     except Exception as e:
         raise _err(e) from e
@@ -165,7 +177,7 @@ def column_detail(dataset_id: str, column_name: str):
         ds = manager.get_dataset(dataset_id)
         for cp in ds.get("column_profiles") or []:
             if cp["name"] == column_name:
-                return cp
+                return ok(cp)
         raise KeyError(f"Column not found: {column_name}")
     except Exception as e:
         raise _err(e) from e
@@ -174,7 +186,7 @@ def column_detail(dataset_id: str, column_name: str):
 @router.post("/{dataset_id}/roles")
 def override_role(dataset_id: str, body: RoleBody):
     try:
-        return manager.override_role(dataset_id, body.column, body.role)
+        return ok(manager.override_role(dataset_id, body.column, body.role))
     except Exception as e:
         raise _err(e) from e
 
@@ -182,6 +194,6 @@ def override_role(dataset_id: str, body: RoleBody):
 @router.post("/{dataset_id}/relationships")
 def relationship_status(dataset_id: str, body: RelationshipBody):
     try:
-        return manager.set_relationship_status(dataset_id, body.label, body.status)
+        return ok(manager.set_relationship_status(dataset_id, body.label, body.status))
     except Exception as e:
         raise _err(e) from e
