@@ -95,11 +95,11 @@ def get_saved(config_id: str):
 @router.post("/generate")
 def generate(body: GenerateBody):
     """
-    Validate + build Task Request + optional save.
-    Does NOT run Step 4 calculations — returns ready payload for processing stage.
+    Validate + build Task Request + optional save + run BI architecture pipeline.
     """
     try:
         ds = manager.get_dataset(body.dataset_id)
+        df = manager.get_raw(body.dataset_id)
     except KeyError as e:
         raise HTTPException(404, detail={"title": "Dataset not found", "message": str(e)}) from e
 
@@ -132,18 +132,29 @@ def generate(body: GenerateBody):
         configuration=req,
     )
 
+    # Architecture pipeline: Semantic → BI specialists → Insight → Result
+    from app.engines.bi_engine import bi_engine
+
+    secondary = None
+    sec_id = (req.get("normalized") or {}).get("secondary_dataset_id")
+    if sec_id:
+        try:
+            secondary = manager.get_raw(sec_id)
+        except KeyError:
+            secondary = None
+
+    analysis = bi_engine.execute(task_request=req, dataset=ds, df=df, secondary_df=secondary)
+
     return ok(
         {
-            "status": "prepared",
-            "message": "Preparing your analysis…",
+            "status": "completed",
+            "message": "Analysis complete.",
             "task_request": req,
-            "next": "step4_processing",
+            "next": "result",
+            "result": analysis,
             "placeholder": {
-                "title": "Preparing your analysis…",
-                "body": (
-                    "Your configuration is validated and ready. "
-                    "The Formula & Calculation Engine (Step 4) will run this Task Request next."
-                ),
+                "title": analysis.get("title") or "Analysis complete",
+                "body": analysis.get("summary") or "Your analysis is ready.",
             },
         }
     )

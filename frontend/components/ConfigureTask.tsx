@@ -548,13 +548,44 @@ export function PreparingPlaceholder({
 }) {
   const tr = (payload.task_request as Record<string, unknown>) || {};
   const ph = (payload.placeholder as Record<string, string>) || {};
+  const result = payload.result as Record<string, unknown> | undefined;
+  const meta = (result?.meta as Record<string, unknown>) || {};
+  const engines = (meta.engines_used as string[]) || [];
+
+  // If BI pipeline returned a result, show it
+  if (result && payload.status === "completed") {
+    return (
+      <div className="mx-auto max-w-[1100px] space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-secondary" onClick={onConfigure}>
+            Edit configuration
+          </button>
+          <button className="btn-secondary" onClick={onBack}>
+            Choose another task
+          </button>
+        </div>
+        {engines.length > 0 && (
+          <div className="flex flex-wrap gap-2 text-[11px]">
+            <span className="font-semibold text-slate-500">Pipeline:</span>
+            {["semantic", ...engines, "insight", "result"].map((e) => (
+              <span key={e} className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                {e}
+              </span>
+            ))}
+          </div>
+        )}
+        <AnalysisResultView result={result} />
+      </div>
+    );
+  }
+
   return (
     <section className="card mx-auto max-w-2xl p-8">
       <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
       <h1 className="text-center text-2xl font-bold text-slate-900">{ph.title || "Preparing your analysis…"}</h1>
       <p className="mt-2 text-center text-slate-500">{ph.body}</p>
       <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
-        <p className="font-semibold text-slate-800">Task request ready for Step 4</p>
+        <p className="font-semibold text-slate-800">Task request</p>
         <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all">
           {JSON.stringify(tr.normalized || tr, null, 2)}
         </pre>
@@ -568,5 +599,115 @@ export function PreparingPlaceholder({
         </button>
       </div>
     </section>
+  );
+}
+
+function AnalysisResultView({ result }: { result: Record<string, unknown> }) {
+  const table = (result.table as Record<string, unknown>[]) || [];
+  const insights = (result.insights as string[]) || [];
+  const alerts = (result.alerts as string[]) || [];
+  const recs = (result.recommendations as string[]) || [];
+  const chart = result.chart as { type?: string; labels?: string[]; values?: number[]; label?: string } | null;
+  const kpis = ((result.meta as Record<string, unknown>)?.kpis as Record<string, number>) || null;
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5">
+        <h1 className="text-xl font-bold text-slate-900">{String(result.title || "Result")}</h1>
+        {result.summary != null && <p className="mt-1 text-sm text-slate-600">{String(result.summary)}</p>}
+        {result.metric_value != null && (
+          <p className="mt-3 text-3xl font-bold text-blue-700">
+            {Number(result.metric_value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </p>
+        )}
+      </div>
+
+      {kpis && Object.keys(kpis).length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(kpis).map(([k, v]) => (
+            <div key={k} className="kpi-card">
+              <p className="text-[11px] font-semibold uppercase text-slate-400">{k}</p>
+              <p className="text-lg font-bold text-slate-900">
+                {typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(v)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {alerts.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {alerts.map((a, i) => (
+            <p key={i}>• {a}</p>
+          ))}
+        </div>
+      )}
+      {insights.length > 0 && (
+        <div className="card p-4 text-sm text-slate-700">
+          <p className="mb-2 font-semibold text-slate-900">Insights</p>
+          {insights.map((a, i) => (
+            <p key={i}>• {a}</p>
+          ))}
+        </div>
+      )}
+      {recs.length > 0 && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <p className="mb-2 font-semibold">Recommendations</p>
+          {recs.map((a, i) => (
+            <p key={i}>• {a}</p>
+          ))}
+        </div>
+      )}
+
+      {chart?.labels && chart.values && (
+        <div className="card p-4 text-xs text-slate-600">
+          <p className="mb-2 text-sm font-semibold text-slate-800">{chart.label || "Chart"} ({chart.type})</p>
+          <div className="space-y-1">
+            {chart.labels.slice(0, 12).map((lab, i) => {
+              const max = Math.max(...(chart.values || [1]), 1);
+              const w = Math.round((100 * (chart.values![i] || 0)) / max);
+              return (
+                <div key={lab + i} className="flex items-center gap-2">
+                  <span className="w-28 truncate text-slate-600">{lab}</span>
+                  <div className="h-2 flex-1 rounded bg-slate-100">
+                    <div className="h-2 rounded bg-blue-600" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="w-16 text-right font-medium">
+                    {Number(chart.values![i] || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {table.length > 0 && (
+        <div className="card overflow-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-[11px] uppercase text-slate-500">
+              <tr>
+                {Object.keys(table[0]).map((h) => (
+                  <th key={h} className="px-3 py-2">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {table.slice(0, 50).map((row, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  {Object.keys(table[0]).map((h) => (
+                    <td key={h} className="px-3 py-1.5 whitespace-nowrap text-slate-700">
+                      {row[h] == null ? "—" : String(row[h])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

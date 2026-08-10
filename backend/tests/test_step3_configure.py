@@ -54,8 +54,10 @@ def test_validate_and_generate():
         },
     )
     assert g.status_code == 200, g.text
-    assert g.json()["status"] == "prepared"
+    assert g.json()["status"] in ("prepared", "completed")
     assert g.json()["task_request"]["normalized"]["measure"]
+    if g.json()["status"] == "completed":
+        assert g.json().get("result")
     recent = client.get(f"/api/configure/recent?dataset_id={ds['id']}")
     assert recent.status_code == 200
     assert len(recent.json()["items"]) >= 1
