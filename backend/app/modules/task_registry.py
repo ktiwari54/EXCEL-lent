@@ -256,16 +256,33 @@ def _profile_facts(dataset: dict[str, Any], dataset_count: int = 1) -> dict[str,
     roles = {p.get("role") for p in profiles}
     types = {p.get("data_type") for p in profiles}
     names = " ".join(str(p.get("name", "")).lower() for p in profiles)
+    # Also use headers when profiles temporarily empty
+    headers = " ".join(str(h).lower() for h in (dataset.get("headers") or []))
+    blob = f"{names} {headers} {str(dataset.get('name') or '').lower()}"
     quality = dataset.get("quality") or {}
     issues = quality.get("issues") or []
-    has_measure = "measure" in roles or any(
-        t in types for t in ("currency", "number", "integer", "decimal", "percentage")
+    has_measure = (
+        "measure" in roles
+        or any(t in types for t in ("currency", "number", "integer", "decimal", "percentage"))
+        or any(k in blob for k in ("revenue", "sales", "amount", "qty", "quantity", "price", "cost", "total", "score", "grade", "units"))
     )
-    has_date = "date_dimension" in roles or any(t in types for t in ("date", "datetime"))
-    has_dim = "dimension" in roles or "category" in types
-    has_id = "identifier" in roles or "identifier" in types
-    looks_sales = any(k in names for k in ("revenue", "sales", "order", "customer", "product"))
-    looks_inv = any(k in names for k in ("sku", "stock", "warehouse", "qty", "quantity", "inventory"))
+    # If we have rows/columns but no profiles yet, still allow measure-based tasks as partial
+    if not profiles and (dataset.get("rows") or 0) > 0 and (dataset.get("columns") or 0) > 0:
+        has_measure = True
+    has_date = "date_dimension" in roles or any(t in types for t in ("date", "datetime")) or "date" in blob
+    has_dim = (
+        "dimension" in roles
+        or "category" in types
+        or any(k in blob for k in ("product", "region", "customer", "category", "country", "city"))
+    )
+    has_id = "identifier" in roles or "identifier" in types or " id" in f" {blob}" or blob.endswith("id")
+    looks_sales = any(k in blob for k in ("revenue", "sales", "order", "customer", "product"))
+    looks_inv = any(k in blob for k in ("sku", "stock", "warehouse", "qty", "quantity", "inventory"))
+    measure_names = [
+        p["name"]
+        for p in profiles
+        if p.get("role") == "measure" or p.get("data_type") in ("currency", "number", "integer", "decimal", "percentage")
+    ][:8]
     return {
         "has_measure": has_measure,
         "has_date": has_date,
@@ -275,7 +292,7 @@ def _profile_facts(dataset: dict[str, Any], dataset_count: int = 1) -> dict[str,
         "dataset_count": dataset_count,
         "looks_like_sales": looks_sales,
         "looks_like_inventory": looks_inv,
-        "measure_names": [p["name"] for p in profiles if p.get("role") == "measure"][:8],
+        "measure_names": measure_names,
         "dimension_names": [p["name"] for p in profiles if p.get("role") == "dimension"][:8],
         "date_names": [p["name"] for p in profiles if p.get("role") == "date_dimension" or p.get("data_type") in ("date", "datetime")][:4],
     }

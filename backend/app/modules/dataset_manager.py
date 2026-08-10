@@ -253,27 +253,76 @@ class DatasetManager:
         out.sort(key=lambda x: x.get("uploaded_at") or "", reverse=True)
         return out
 
+    def _hydrate_meta(self, dataset_id: str) -> dict[str, Any]:
+        """
+        Load full metadata (including column_profiles).
+        Index only stores a slim summary — always prefer {id}_meta.json,
+        and re-profile from RAW data if profiles are missing.
+        """
+        meta_path = self.root / f"{dataset_id}_meta.json"
+        m = self._meta.get(dataset_id) or {}
+
+        if meta_path.exists():
+            try:
+                full = json.loads(meta_path.read_text(encoding="utf-8"))
+                # Merge full file over slim index entry
+                m = {**m, **full}
+            except Exception:
+                pass
+
+        if not m.get("id"):
+            m["id"] = dataset_id
+
+        needs_profile = not m.get("column_profiles")
+        if needs_profile:
+            try:
+                df = self.get_raw(dataset_id)
+            except KeyError:
+                if not m:
+                    raise KeyError(dataset_id)
+                self._meta[dataset_id] = m
+                return m
+            profile = profile_dataframe(df)
+            m["column_profiles"] = profile["column_profiles"]
+            m["quality"] = profile["quality"]
+            m["health"] = profile["health"]
+            m["health_score"] = profile["health"]["score"]
+            m["summary"] = profile["summary"]
+            m["rows"] = profile["rows"]
+            m["columns"] = profile["columns"]
+            m["headers"] = list(df.columns)
+            m["preview"] = profile.get("preview") or _safe_preview(df)
+            # persist repaired meta so next load is fast
+            try:
+                meta_path.write_text(json.dumps(m, default=str), encoding="utf-8")
+            except Exception:
+                pass
+
+        self._meta[dataset_id] = m
+        return m
+
     def get_dataset(self, dataset_id: str, include_preview: bool = True) -> dict[str, Any]:
-        if dataset_id not in self._meta:
-            # try load meta file
-            meta_path = self.root / f"{dataset_id}_meta.json"
-            if meta_path.exists():
-                self._meta[dataset_id] = json.loads(meta_path.read_text(encoding="utf-8"))
-            else:
-                raise KeyError(dataset_id)
-        m = self._meta[dataset_id]
-        # ensure frames loadable
-        self.get_raw(dataset_id)
+        try:
+            m = self._hydrate_meta(dataset_id)
+        except KeyError:
+            raise KeyError(dataset_id)
+
+        # ensure frames loadable when possible
+        try:
+            self.get_raw(dataset_id)
+        except KeyError:
+            pass
+
         result = {
-            "id": m["id"],
-            "name": m["name"],
+            "id": m.get("id") or dataset_id,
+            "name": m.get("name") or "Dataset",
             "original_filename": m.get("original_filename"),
             "sheet_name": m.get("sheet_name"),
             "uploaded_at": m.get("uploaded_at"),
             "rows": m.get("rows"),
             "columns": m.get("columns"),
             "headers": m.get("headers"),
-            "column_profiles": m.get("column_profiles"),
+            "column_profiles": m.get("column_profiles") or [],
             "quality": m.get("quality"),
             "health": m.get("health"),
             "summary": m.get("summary"),
@@ -282,7 +331,10 @@ class DatasetManager:
             "layers": {"raw": "preserved", "working": "available"},
         }
         if include_preview:
-            result["preview"] = m.get("preview") or _safe_preview(self.get_raw(dataset_id))
+            try:
+                result["preview"] = m.get("preview") or _safe_preview(self.get_raw(dataset_id))
+            except Exception:
+                result["preview"] = m.get("preview") or []
         return json_safe(result)
 
     def get_raw(self, dataset_id: str) -> pd.DataFrame:
