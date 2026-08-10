@@ -37,15 +37,34 @@ def answer_question(df: pd.DataFrame, question: str, session_id: str = "ask") ->
         result["meta"] = {**(result.get("meta") or {}), "intent": "find_problems", "question": q}
         return result
 
-    # Dashboard
-    if "dashboard" in ql:
+    # Build my dashboard (free-text) — product vision §8
+    if "dashboard" in ql or "build my dashboard" in ql or "create a sales dashboard" in ql:
         dtype = "sales"
         for t in ("inventory", "finance", "crm", "marketing", "hr", "operations"):
             if t in ql:
                 dtype = t
                 break
         result = build_dashboard(df, dashboard_type=dtype)
-        result["meta"] = {**(result.get("meta") or {}), "intent": "dashboard", "question": q}
+        # Honor common free-text intents by layering extra insights
+        extras: list[str] = []
+        if "gross margin" in ql or "margin" in ql:
+            rev = _find_column(df, "revenue", "sales")
+            cost = _find_column(df, "cost", "cogs")
+            if rev and cost:
+                r = float(pd.to_numeric(df[rev], errors="coerce").sum())
+                c = float(pd.to_numeric(df[cost], errors="coerce").sum())
+                margin = 100 * (r - c) / r if r else 0
+                extras.append(f"Gross margin ≈ {margin:.1f}% (Revenue − Cost).")
+        if "year-over-year" in ql or "yoy" in ql or "year over year" in ql:
+            extras.append("YoY growth requires multi-year dates; MoM trend included when dates exist.")
+        if extras:
+            result["insights"] = list(result.get("insights") or []) + extras
+        result["meta"] = {
+            **(result.get("meta") or {}),
+            "intent": "dashboard",
+            "question": q,
+            "build_my_dashboard": True,
+        }
         return result
 
     # Analyze

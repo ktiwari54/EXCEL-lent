@@ -177,6 +177,75 @@ class AnalyzeRequest(BaseModel):
     category_column: str | None = None
 
 
+class LookupRequest(BaseModel):
+    session_id: str
+    lookup_value: str
+    lookup_column: str
+    return_column: str
+    exact: bool = True
+
+
+class MultiLookupRequest(BaseModel):
+    session_id: str
+    conditions: list[dict[str, str]] = Field(default_factory=list)
+    return_columns: list[str] | None = None
+
+
+class GrowthRequest(BaseModel):
+    session_id: str
+    date_column: str
+    value_column: str
+    freq: str = "M"  # M month, Q quarter, Y year
+
+
+class TemplateRequest(BaseModel):
+    session_id: str
+    template_id: str
+
+
+class EnrichDatesRequest(BaseModel):
+    session_id: str
+    date_column: str
+
+
+class ConditionalRequest(BaseModel):
+    session_id: str
+    function: str = "sumif"  # sumif | sumifs | countif | countifs | averageif
+    criteria_column: str | None = None
+    criteria_value: str | None = None
+    value_column: str | None = None  # sum/avg column
+    op: str = "="
+    criteria: list[dict[str, str]] = Field(default_factory=list)
+
+
+class MathRequest(BaseModel):
+    session_id: str
+    left_column: str
+    operator: str = "-"  # + - * / %
+    right_column: str | None = None
+    right_value: float | None = None
+    result_name: str = "Result"
+    persist: bool = False
+
+
+class FilterArrayRequest(BaseModel):
+    session_id: str
+    column: str
+    op: str = "="
+    value: str
+
+
+class UniqueRequest(BaseModel):
+    session_id: str
+    column: str
+
+
+class SortRequest(BaseModel):
+    session_id: str
+    by: list[str]
+    ascending: bool = True
+
+
 class ExportRequest(BaseModel):
     session_id: str
     include_cleaned: bool = True

@@ -2,15 +2,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import get_settings
+from app.engines.arrays import filter_rows, sort_data, unique_values
 from app.engines.cleaning import clean_dataframe, detect_issues
+from app.engines.conditional import averageif, countif, countifs, math_expression, sumif, sumifs
+from app.engines.dates import enrich_date_columns, period_growth, ytd_total
 from app.engines.formula import calculate, compare, summarize
 from app.engines.insight import analyze_dataset, build_dashboard, build_report, find_problems, top_bottom
+from app.engines.lookup import multi_condition_lookup, xlookup
 from app.engines.nl_parser import answer_question
 from app.engines.pivot import chart_data, create_pivot
+from app.engines.templates import list_templates as template_catalog
+from app.engines.templates import run_template
 from app.models.schemas import (
     AnalysisResult,
     AnalyzeRequest,
@@ -19,12 +26,22 @@ from app.models.schemas import (
     ChartRequest,
     CleanRequest,
     CompareRequest,
+    ConditionalRequest,
     DashboardRequest,
+    EnrichDatesRequest,
     ExportRequest,
+    FilterArrayRequest,
     FindRequest,
+    GrowthRequest,
+    LookupRequest,
+    MathRequest,
+    MultiLookupRequest,
     PivotRequest,
     ReportRequest,
+    SortRequest,
     SummarizeRequest,
+    TemplateRequest,
+    UniqueRequest,
 )
 from app.services.excel_io import table_to_records, write_analysis_workbook
 from app.services.session_store import store
@@ -137,14 +154,35 @@ def api_clean(body: CleanRequest) -> AnalysisResult:
 def api_find(body: FindRequest) -> AnalysisResult:
     df = _df(body.session_id)
     ft = body.find_type.lower()
-    if ft in ("top", "bottom"):
+    if ft in ("top", "bottom", "highest", "lowest"):
         col = body.column
         if not col:
             raise HTTPException(400, "column is required for top/bottom")
-        out = top_bottom(df, col, n=body.n, ascending=(ft == "bottom"))
+        ascending = ft in ("bottom", "lowest")
+        # Aggregate by first categorical-ish column if present
+        label = None
+        for c in df.columns:
+            if c != col and not pd_is_numeric(df[c]):
+                label = c
+                break
+        if label:
+            work = df.copy()
+            work["_v"] = pd.to_numeric(work[col], errors="coerce")
+            agg = work.groupby(work[label].astype(str))["_v"].sum().reset_index()
+            agg.columns = [label, col]
+            out = top_bottom(agg, col, n=body.n, ascending=ascending, label_column=label)
+        else:
+            out = top_bottom(df, col, n=body.n, ascending=ascending)
+        return _result(out)
+    if ft in ("duplicates", "missing", "outliers", "problems"):
+        out = find_problems(df, body.column, body.n)
         return _result(out)
     out = find_problems(df, body.column, body.n)
     return _result(out)
+
+
+def pd_is_numeric(s) -> bool:
+    return bool(pd.api.types.is_numeric_dtype(s))
 
 
 @router.post("/analyze", response_model=AnalysisResult)
@@ -248,48 +286,158 @@ def api_export(body: ExportRequest) -> FileResponse:
 
 @router.get("/templates")
 def list_templates() -> dict:
-    """Template library scaffold for domain analytics."""
-    return {
-        "templates": {
-            "sales": [
-                "Sales Dashboard",
-                "Sales Forecast",
-                "Salesperson Performance",
-                "Product Performance",
-                "Customer Analysis",
-            ],
-            "inventory": [
-                "Stock Dashboard",
-                "Stock Aging",
-                "Inventory Turnover",
-                "Low Stock Report",
-                "Dead Stock Analysis",
-            ],
-            "finance": [
-                "P&L Analysis",
-                "Expense Analysis",
-                "Budget vs Actual",
-                "Cash Flow",
-                "Variance Analysis",
-            ],
-            "hr": [
-                "Attendance",
-                "Employee Performance",
-                "Attrition",
-                "Payroll Analysis",
-            ],
-            "crm": [
-                "Lead Analysis",
-                "Conversion Rate",
-                "Pipeline Analysis",
-                "Win/Loss Analysis",
-            ],
-            "ecommerce": [
-                "Order Analysis",
-                "SKU Performance",
-                "Returns",
-                "Marketplace Performance",
-                "Customer Cohort Analysis",
-            ],
-        }
-    }
+    """Domain template library (runnable templates)."""
+    return template_catalog()
+
+
+@router.post("/templates/run", response_model=AnalysisResult)
+def api_run_template(body: TemplateRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = run_template(df, body.template_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/lookup", response_model=AnalysisResult)
+def api_lookup(body: LookupRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = xlookup(
+            df,
+            body.lookup_value,
+            body.lookup_column,
+            body.return_column,
+            body.exact,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/lookup/multi", response_model=AnalysisResult)
+def api_multi_lookup(body: MultiLookupRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = multi_condition_lookup(df, body.conditions, body.return_columns)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/growth", response_model=AnalysisResult)
+def api_growth(body: GrowthRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = period_growth(df, body.date_column, body.value_column, body.freq)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/ytd", response_model=AnalysisResult)
+def api_ytd(body: GrowthRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = ytd_total(df, body.date_column, body.value_column)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/enrich-dates", response_model=AnalysisResult)
+def api_enrich_dates(body: EnrichDatesRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        enriched = enrich_date_columns(df, body.date_column)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    store.update(body.session_id, enriched, dates_enriched=True)
+    new_cols = [c for c in enriched.columns if c not in df.columns]
+    return AnalysisResult(
+        title="Date columns enriched",
+        summary=f"Added {len(new_cols)} helper columns from '{body.date_column}'.",
+        insights=[f"New columns: {', '.join(new_cols)}"],
+        table=table_to_records(enriched.head(30)),
+        meta={"new_columns": new_cols, "rows": len(enriched)},
+    )
+
+
+@router.post("/conditional", response_model=AnalysisResult)
+def api_conditional(body: ConditionalRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    fn = body.function.lower()
+    try:
+        if fn == "sumif":
+            if not body.criteria_column or body.criteria_value is None or not body.value_column:
+                raise ValueError("sumif requires criteria_column, criteria_value, value_column")
+            out = sumif(df, body.criteria_column, body.criteria_value, body.value_column, body.op)
+        elif fn == "sumifs":
+            if not body.value_column:
+                raise ValueError("sumifs requires value_column")
+            out = sumifs(df, body.value_column, body.criteria)
+        elif fn == "countif":
+            if not body.criteria_column or body.criteria_value is None:
+                raise ValueError("countif requires criteria_column and criteria_value")
+            out = countif(df, body.criteria_column, body.criteria_value, body.op)
+        elif fn == "countifs":
+            out = countifs(df, body.criteria)
+        elif fn == "averageif":
+            if not body.criteria_column or body.criteria_value is None or not body.value_column:
+                raise ValueError("averageif requires criteria_column, criteria_value, value_column")
+            out = averageif(df, body.criteria_column, body.criteria_value, body.value_column, body.op)
+        else:
+            raise ValueError(f"Unknown function: {body.function}")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/math", response_model=AnalysisResult)
+def api_math(body: MathRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = math_expression(
+            df,
+            body.left_column,
+            body.operator,
+            body.right_column,
+            body.right_value,
+            body.result_name,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    if body.persist and "dataframe" in out:
+        store.update(body.session_id, out["dataframe"], math_column=body.result_name)
+    return _result(out)
+
+
+@router.post("/filter", response_model=AnalysisResult)
+def api_filter(body: FilterArrayRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = filter_rows(df, body.column, body.op, body.value)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/unique", response_model=AnalysisResult)
+def api_unique(body: UniqueRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = unique_values(df, body.column)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)
+
+
+@router.post("/sort", response_model=AnalysisResult)
+def api_sort(body: SortRequest) -> AnalysisResult:
+    df = _df(body.session_id)
+    try:
+        out = sort_data(df, body.by, body.ascending)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return _result(out)

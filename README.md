@@ -36,7 +36,12 @@ EXCEL-lent is an **Excel Data Analyst Engine** — a guided analytics platform t
 | Dashboard generator (Sales + custom) | ✅ MVP |
 | Report generator | ✅ MVP |
 | Excel workbook export | ✅ MVP |
-| Template library (Sales, Finance, HR, CRM…) | 🚧 Scaffold |
+| Template library (Sales, Finance, HR, CRM…) | ✅ Runnable |
+| SUMIF / COUNTIF / AVERAGEIF | ✅ MVP |
+| Row math (Revenue − Cost) | ✅ MVP |
+| FILTER / UNIQUE / SORT | ✅ MVP |
+| Lookup (XLOOKUP-style) | ✅ MVP |
+| Growth / YTD / date enrich | ✅ MVP |
 | Live Power Query / desktop add-in | 📋 Roadmap |
 | Multi-user / cloud sync | 📋 Roadmap |
 

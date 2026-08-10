@@ -50,6 +50,12 @@ export type AnalysisResult = {
   meta: Record<string, unknown>;
 };
 
+export type TemplateItem = {
+  id: string;
+  name: string;
+  desc: string;
+};
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -64,10 +70,16 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function uploadFile(file: File): Promise<DatasetProfile> {
+export async function uploadFile(file: File, sheet?: string): Promise<DatasetProfile> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_URL}/api/upload`, { method: "POST", body: form });
+  const qs = sheet ? `?sheet=${encodeURIComponent(sheet)}` : "";
+  const res = await fetch(`${API_URL}/api/upload${qs}`, { method: "POST", body: form });
+  return handle(res);
+}
+
+export async function refreshSession(sessionId: string): Promise<DatasetProfile> {
+  const res = await fetch(`${API_URL}/api/session/${sessionId}`);
   return handle(res);
 }
 
@@ -84,14 +96,10 @@ export async function postAnalysis<T extends object>(
 }
 
 export async function getTemplates(): Promise<{
-  templates: Record<string, string[]>;
+  templates: Record<string, TemplateItem[]>;
 }> {
   const res = await fetch(`${API_URL}/api/templates`);
   return handle(res);
-}
-
-export function exportUrl(sessionId: string): string {
-  return `${API_URL}/api/export`;
 }
 
 export async function exportWorkbook(sessionId: string): Promise<Blob> {
@@ -106,6 +114,15 @@ export async function exportWorkbook(sessionId: string): Promise<Blob> {
   });
   if (!res.ok) throw new Error("Export failed");
   return res.blob();
+}
+
+export async function healthCheck(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/health`, { cache: "no-store" });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export { API_URL };
