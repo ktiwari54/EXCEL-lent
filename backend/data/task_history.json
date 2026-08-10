@@ -1,6 +1,102 @@
 {
   "items": [
     {
+      "id": "daeb8cf8-9f31-4161-9598-446476cbfaeb",
+      "dataset_id": "ef990770-1a03-487a-b54e-b3dedee7d9cc",
+      "dataset_name": "sales",
+      "task_id": "analyze",
+      "task_name": "Analyze My Data",
+      "category": "Analyze",
+      "configuration": {
+        "dataset_id": "ef990770-1a03-487a-b54e-b3dedee7d9cc",
+        "dataset_name": "sales",
+        "task_id": "analyze",
+        "task_name": "Analyze My Data",
+        "task_category": "Analyze",
+        "objective": "Analyze My Data",
+        "secondary_dataset_ids": [],
+        "detected_fields": {
+          "measures": [
+            "Salesperson",
+            "Units",
+            "UnitPrice",
+            "Revenue",
+            "Cost"
+          ],
+          "dimensions": [
+            "Region",
+            "Country",
+            "Product",
+            "Category",
+            "Customer"
+          ],
+          "dates": [
+            "OrderDate"
+          ]
+        },
+        "notes": null,
+        "stage": "configure"
+      },
+      "result_ref": null,
+      "timestamp": "2026-08-10T09:31:52.649178+00:00"
+    },
+    {
+      "id": "87e7d18f-9cd4-441c-a1e1-a43734f46881",
+      "dataset_id": "f9bb3845-2a46-4d67-bc9c-1501c7845d8e",
+      "dataset_name": "sales",
+      "task_id": "calculate",
+      "task_name": "Calculate",
+      "category": "Calculate",
+      "configuration": {
+        "name": "Total Revenue",
+        "dataset_id": "f9bb3845-2a46-4d67-bc9c-1501c7845d8e",
+        "dataset_name": "sales",
+        "task_id": "calculate",
+        "task_name": "Calculate",
+        "task_category": "Calculate",
+        "configuration": {
+          "aggregation": "sum",
+          "measure": "Revenue",
+          "group_by": "",
+          "filters": [],
+          "ignore_blanks": true,
+          "decimals": 2
+        },
+        "output_type": "value",
+        "status": "ready_for_processing",
+        "engine": "step4_pending",
+        "normalized": {
+          "measure": "Revenue",
+          "aggregation": "sum",
+          "group_by": [],
+          "filters": [],
+          "date_field": null,
+          "date_grain": null,
+          "date_range": null,
+          "chart_type": null,
+          "category": null,
+          "limit": null,
+          "sort_direction": "desc",
+          "compare_by": null,
+          "left_value": null,
+          "right_value": null,
+          "comparison_method": null,
+          "rows": [],
+          "columns": null,
+          "actions": null,
+          "duplicate_keys": null,
+          "secondary_dataset_id": null,
+          "lookup_column": null,
+          "return_column": null,
+          "dashboard_type": null,
+          "report_type": null
+        },
+        "saved_id": "a10f0233-2c59-48d2-ac3b-23272c7195d5"
+      },
+      "result_ref": null,
+      "timestamp": "2026-08-10T09:31:52.496306+00:00"
+    },
+    {
       "id": "ac8454c4-2f46-4f96-b55d-91798f2a639c",
       "dataset_id": "e3e283a3-ab42-4806-982d-4284df9d3d47",
       "dataset_name": "sales",

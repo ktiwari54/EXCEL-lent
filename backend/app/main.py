@@ -4,15 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import datasets, tasks
+from app.routers import configure, datasets, tasks
 
 settings = get_settings()
 
 app = FastAPI(
     title="Data Analyst Engine",
-    version="0.3.0-step2",
+    version="0.4.0-step3",
     description=(
-        "Data Analyst Engine — Step 1 Upload & Profile · Step 2 Task Selection. "
+        "Data Analyst Engine — Steps 1–3: Upload, Task Selection, Dynamic Configuration. "
         "Your Data. Our Intelligence."
     ),
 )
@@ -27,6 +27,7 @@ app.add_middleware(
 
 app.include_router(datasets.router)
 app.include_router(tasks.router)
+app.include_router(configure.router)
 
 
 @app.get("/")
@@ -34,12 +35,12 @@ def root() -> dict:
     return {
         "name": "Data Analyst Engine",
         "tagline": "Your Data. Our Intelligence.",
-        "stage": "step2_task_selection",
-        "version": "0.3.0-step2",
+        "stage": "step3_configure",
+        "version": "0.4.0-step3",
         "docs": "/docs",
     }
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "0.3.0-step2", "stage": "step2"}
+    return {"status": "ok", "version": "0.4.0-step3", "stage": "step3"}

@@ -49,9 +49,10 @@ import {
 } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
 import { LoadingOverlay } from "@/components/ui";
-import { TaskConfigurePlaceholder, TaskSelectionView } from "@/components/TaskSelection";
+import { TaskSelectionView } from "@/components/TaskSelection";
+import { ConfigureTaskView, PreparingPlaceholder } from "@/components/ConfigureTask";
 
-type View = "home" | "upload" | "sheets" | "profile" | "library" | "soon" | "tasks" | "configure";
+type View = "home" | "upload" | "sheets" | "profile" | "library" | "soon" | "tasks" | "configure" | "preparing";
 
 export default function HomePage() {
   const [view, setView] = useState<View>("home");
@@ -82,6 +83,7 @@ export default function HomePage() {
   const [renameValue, setRenameValue] = useState("");
   const [preselectTaskId, setPreselectTaskId] = useState<string | null>(null);
   const [taskSelection, setTaskSelection] = useState<TaskSelection | null>(null);
+  const [generatePayload, setGeneratePayload] = useState<Record<string, unknown> | null>(null);
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -354,7 +356,7 @@ export default function HomePage() {
         <div className="border-t border-white/10 px-4 py-3">
           <div className={clsx("flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium", apiOk ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300")}>
             <span className={clsx("h-2 w-2 rounded-full", apiOk ? "bg-emerald-400" : "bg-rose-400")} />
-            {apiOk ? "Engine online · Step 1–2" : "API offline"}
+            {apiOk ? "Engine online · Steps 1–3" : "API offline"}
           </div>
         </div>
       </aside>
@@ -398,13 +400,13 @@ export default function HomePage() {
               onClick={() => (active ? go("profile", "explore") : go("upload", "upload"))}
               className={clsx(
                 "rounded-full px-3 py-1",
-                view === "tasks" || view === "configure"
+                ["preparing", "configure", "tasks"].includes(view)
                   ? "bg-emerald-100 text-emerald-800"
                   : "bg-blue-600 text-white"
               )}
             >
-              1. Upload Data
-              {(view === "tasks" || view === "configure" || view === "profile") && " ✓"}
+              1. Upload
+              {["profile", "tasks", "configure", "preparing"].includes(view) && " ✓"}
             </button>
             <span className="text-slate-300">↓</span>
             <button
@@ -412,23 +414,39 @@ export default function HomePage() {
               onClick={() => goToTasks()}
               className={clsx(
                 "rounded-full px-3 py-1",
-                view === "tasks" ? "bg-blue-600 text-white" : view === "configure" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-500"
+                view === "tasks"
+                  ? "bg-blue-600 text-white"
+                  : ["configure", "preparing"].includes(view)
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-200 text-slate-500"
               )}
             >
               2. Choose Task
-              {view === "configure" && " ✓"}
+              {["configure", "preparing"].includes(view) && " ✓"}
             </button>
             <span className="text-slate-300">↓</span>
             <span
               className={clsx(
                 "rounded-full px-3 py-1",
-                view === "configure" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+                view === "configure"
+                  ? "bg-blue-600 text-white"
+                  : view === "preparing"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-200 text-slate-500"
               )}
             >
               3. Configure
+              {view === "preparing" && " ✓"}
             </span>
             <span className="text-slate-300">↓</span>
-            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-500">4–5. Generate / Result</span>
+            <span
+              className={clsx(
+                "rounded-full px-3 py-1",
+                view === "preparing" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+              )}
+            >
+              4–5. Generate / Result
+            </span>
           </div>
 
           {view === "home" && (
@@ -555,10 +573,23 @@ export default function HomePage() {
           )}
 
           {view === "configure" && taskSelection && (
-            <TaskConfigurePlaceholder
+            <ConfigureTaskView
               selection={taskSelection}
+              dataset={active}
+              onChangeTask={() => goToTasks(active)}
+              onBackProfile={() => active && openDataset(active.id, true)}
+              onGenerated={(payload) => {
+                setGeneratePayload(payload);
+                setView("preparing");
+              }}
+            />
+          )}
+
+          {view === "preparing" && generatePayload && (
+            <PreparingPlaceholder
+              payload={generatePayload}
               onBack={() => goToTasks(active)}
-              onProfile={() => active && openDataset(active.id, true)}
+              onConfigure={() => setView("configure")}
             />
           )}
 

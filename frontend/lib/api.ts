@@ -345,4 +345,62 @@ export async function fetchTaskHistory(): Promise<HistoryItem[]> {
   return data.items;
 }
 
+// ─── Step 3: Configure ───────────────────────────────────────
+
+export async function getConfigSchema(datasetId: string, taskId: string): Promise<Record<string, unknown>> {
+  const res = await safeFetch(
+    url(`/api/configure/schema?dataset_id=${encodeURIComponent(datasetId)}&task_id=${encodeURIComponent(taskId)}`)
+  );
+  return handle(res);
+}
+
+export async function validateConfiguration(body: {
+  dataset_id: string;
+  task_id: string;
+  configuration: Record<string, unknown>;
+}): Promise<{ valid: boolean; errors: string[] }> {
+  const res = await safeFetch(url("/api/configure/validate"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return handle(res);
+}
+
+export async function saveConfiguration(body: {
+  dataset_id: string;
+  task_id: string;
+  configuration: Record<string, unknown>;
+  name?: string;
+}): Promise<{ saved: Record<string, unknown> }> {
+  const res = await safeFetch(url("/api/configure/save"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return handle(res);
+}
+
+export async function listRecentConfigs(datasetId?: string): Promise<Record<string, unknown>[]> {
+  const q = datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : "";
+  const res = await safeFetch(url(`/api/configure/recent${q}`));
+  const data = await handle<{ items: Record<string, unknown>[] }>(res);
+  return data.items;
+}
+
+export async function generateAnalysis(body: {
+  dataset_id: string;
+  task_id: string;
+  configuration: Record<string, unknown>;
+  name?: string;
+  save?: boolean;
+}): Promise<Record<string, unknown>> {
+  const res = await safeFetch(url("/api/configure/generate"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return handle(res);
+}
+
 export { API_URL };

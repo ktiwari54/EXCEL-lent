@@ -1,0 +1,51 @@
+{
+  "items": [
+    {
+      "id": "a10f0233-2c59-48d2-ac3b-23272c7195d5",
+      "saved_at": "2026-08-10T09:31:52.495802+00:00",
+      "name": "Total Revenue",
+      "dataset_id": "f9bb3845-2a46-4d67-bc9c-1501c7845d8e",
+      "dataset_name": "sales",
+      "task_id": "calculate",
+      "task_name": "Calculate",
+      "task_category": "Calculate",
+      "configuration": {
+        "aggregation": "sum",
+        "measure": "Revenue",
+        "group_by": "",
+        "filters": [],
+        "ignore_blanks": true,
+        "decimals": 2
+      },
+      "output_type": "value",
+      "status": "ready_for_processing",
+      "engine": "step4_pending",
+      "normalized": {
+        "measure": "Revenue",
+        "aggregation": "sum",
+        "group_by": [],
+        "filters": [],
+        "date_field": null,
+        "date_grain": null,
+        "date_range": null,
+        "chart_type": null,
+        "category": null,
+        "limit": null,
+        "sort_direction": "desc",
+        "compare_by": null,
+        "left_value": null,
+        "right_value": null,
+        "comparison_method": null,
+        "rows": [],
+        "columns": null,
+        "actions": null,
+        "duplicate_keys": null,
+        "secondary_dataset_id": null,
+        "lookup_column": null,
+        "return_column": null,
+        "dashboard_type": null,
+        "report_type": null
+      }
+    }
+  ]
+}
