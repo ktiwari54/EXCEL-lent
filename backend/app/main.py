@@ -4,16 +4,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import analysis, data
+from app.routers import datasets
 
 settings = get_settings()
 
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
+    title="Data Analyst Engine",
+    version="0.2.0-step1",
     description=(
-        "EXCEL-lent — Your data analyst, built into Excel. "
-        "Upload data, select an objective or ask a question, get analysis."
+        "Data Analyst Engine — Step 1: Upload & Data Profiling. "
+        "Your Data. Our Intelligence."
     ),
 )
 
@@ -25,21 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(data.router)
-app.include_router(analysis.router)
+app.include_router(datasets.router)
 
 
 @app.get("/")
 def root() -> dict:
     return {
-        "name": settings.app_name,
-        "version": settings.app_version,
-        "tagline": "Upload. Ask. Analyze.",
+        "name": "Data Analyst Engine",
+        "tagline": "Your Data. Our Intelligence.",
+        "stage": "step1_upload_profiling",
+        "version": "0.2.0-step1",
         "docs": "/docs",
-        "health": "/health",
     }
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": settings.app_version}
+    return {"status": "ok", "version": "0.2.0-step1", "stage": "step1"}
