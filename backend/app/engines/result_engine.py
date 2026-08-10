@@ -44,7 +44,7 @@ class ResultEngine:
                 "alerts": insights.get("alerts") or [],
                 "recommendations": insights.get("recommendations") or [],
                 "meta": {
-                    "architecture": "ai→semantic→bi→specialists→insight→result",
+                    "architecture": "ai→semantic→bi→formula|lookup|time|stats|kpi|ranking|pareto|outlier|scenario→insight→result",
                     "task_request": {
                         "task_id": task_request.get("task_id"),
                         "output_type": task_request.get("output_type"),
@@ -58,6 +58,7 @@ class ResultEngine:
                     "kpis": kpis,
                     "engines_used": [p.get("engine") for p in pieces if p.get("engine")],
                     "charts": [p["chart"] for p in pieces if p.get("chart")],
+                    "explanations": [p.get("explanation") for p in pieces if p.get("explanation")],
                 },
             }
         )

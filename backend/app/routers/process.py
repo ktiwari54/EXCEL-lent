@@ -45,15 +45,22 @@ def architecture_map():
             "modules": {
                 "ai_intent": "app.engines.ai_intent",
                 "semantic": "app.engines.semantic",
+                "measures": "app.engines.measure_engine",
                 "bi": "app.engines.bi_engine",
                 "formula": "app.engines.formula_engine",
                 "lookup": "app.engines.lookup_engine",
                 "time": "app.engines.time_engine",
                 "statistics": "app.engines.stats_engine",
+                "ranking": "app.engines.ranking_engine",
+                "pareto": "app.engines.pareto_engine",
+                "outlier": "app.engines.outlier_engine",
+                "scenario": "app.engines.scenario_engine",
                 "kpi": "app.engines.kpi_engine",
                 "insight": "app.engines.insight_engine",
                 "result": "app.engines.result_engine",
             },
+            "step": 4,
+            "principle": "User asks a business question; engines choose methods. Formulas stay hidden unless requested.",
         }
     )
 

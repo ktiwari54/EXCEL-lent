@@ -53,6 +53,7 @@ class FormulaEngine:
             if limit and int(limit) > 0:
                 tdf = tdf.head(int(limit))
             metric = float(pd.to_numeric(tdf[agg], errors="coerce").sum()) if len(tdf) else 0.0
+            filt_desc = self._filter_desc(normalized.get("filters") or [])
             return json_safe(
                 {
                     "engine": "formula",
@@ -66,6 +67,12 @@ class FormulaEngine:
                         "label": f"{agg}({measure})",
                     },
                     "summary": f"{agg.upper()} of {measure} by {', '.join(gcols)}",
+                    "explanation": {
+                        "what": f"{agg.upper()} of {measure} by {', '.join(gcols)}",
+                        "logic": f"Filter{filt_desc}; group by {gcols}; {agg.upper()}({measure})",
+                        "fields": gcols + [measure],
+                        "excel_equivalent": f"SUMIFS/AVERAGEIFS style on {measure}",
+                    },
                 }
             )
 
@@ -84,6 +91,7 @@ class FormulaEngine:
         else:
             val = float(clean.sum()) if len(clean) else 0.0
 
+        filt_desc = self._filter_desc(normalized.get("filters") or [])
         return json_safe(
             {
                 "engine": "formula",
@@ -91,8 +99,23 @@ class FormulaEngine:
                 "metric_value": val,
                 "table": [{"metric": agg, "column": measure, "value": val, "rows_used": int(len(clean))}],
                 "summary": f"{agg.upper()}({measure}) = {val:,.4g}",
+                "explanation": {
+                    "what": f"{agg.upper()} of {measure}",
+                    "logic": f"Filter{filt_desc}; {agg.upper()}({measure}) over {len(clean)} rows",
+                    "fields": [measure],
+                    "excel_equivalent": f"={agg.upper()}({measure})",
+                },
             }
         )
+
+    def _filter_desc(self, filters: list[dict[str, Any]]) -> str:
+        if not filters:
+            return ""
+        parts = []
+        for f in filters:
+            if f.get("field") and f.get("value") not in (None, ""):
+                parts.append(f"{f.get('field')} {f.get('operator', 'is')} {f.get('value')}")
+        return (" where " + " AND ".join(parts)) if parts else ""
 
     def _apply_filters(self, df: pd.DataFrame, filters: list[dict[str, Any]]) -> pd.DataFrame:
         work = df

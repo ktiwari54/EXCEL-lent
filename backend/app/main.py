@@ -10,10 +10,10 @@ settings = get_settings()
 
 app = FastAPI(
     title="Data Analyst Engine",
-    version="0.5.0",
+    version="0.6.0-step4",
     description=(
-        "Data Analyst Engine — Upload · Task · Configure · BI Pipeline. "
-        "Architecture: AI/Intent → Semantic → BI → Formula/Lookup/Time/Stats/KPI → Insight → Result."
+        "Data Analyst Engine — Steps 1–4: Profile · Task · Configure · Intelligent BI Engine. "
+        "AI/Intent → Semantic → Measures → BI → Formula/Lookup/Time/Stats/Ranking/Pareto/Outlier/Scenario/KPI → Insight → Result."
     ),
 )
 
@@ -36,8 +36,8 @@ def root() -> dict:
     return {
         "name": "Data Analyst Engine",
         "tagline": "Your Data. Our Intelligence.",
-        "stage": "bi_pipeline",
-        "version": "0.5.0",
+        "stage": "step4_bi_engine",
+        "version": "0.6.0-step4",
         "architecture": "/api/process/architecture",
         "docs": "/docs",
     }
@@ -45,4 +45,4 @@ def root() -> dict:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "0.5.0", "stage": "bi_pipeline"}
+    return {"status": "ok", "version": "0.6.0-step4", "stage": "step4"}

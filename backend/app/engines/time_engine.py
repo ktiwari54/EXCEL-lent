@@ -45,19 +45,33 @@ class TimeEngine:
         if len(tdf) >= 2 and pd.notna(tdf["growth_pct"].iloc[-1]):
             latest = float(tdf["growth_pct"].iloc[-1])
 
+        # YTD
+        ytd_total = float(work.loc[work["_dt"].dt.year == work["_dt"].max().year, "_m"].sum())
         return json_safe(
             {
                 "engine": "time",
                 "ok": True,
                 "metric_value": latest,
                 "summary": f"{grain.title()} trend of {measure}"
-                + (f" · latest change {latest:+.1f}%" if latest is not None else ""),
+                + (f" · latest change {latest:+.1f}%" if latest is not None else "")
+                + f" · YTD {ytd_total:,.2f}",
                 "table": tdf.drop(columns=["prev"], errors="ignore").to_dict(orient="records"),
                 "chart": {
                     "type": "line",
                     "labels": tdf["Period"].astype(str).tolist(),
                     "values": [float(x) for x in tdf[measure].tolist()],
                     "label": measure,
+                },
+                "kpis": {
+                    f"YTD {measure}": ytd_total,
+                    "Periods": len(tdf),
+                    "Latest growth %": latest if latest is not None else 0,
+                },
+                "explanation": {
+                    "what": f"{grain.title()} time intelligence on {measure}",
+                    "logic": f"Parse {date_field}; group by {grain}; SUM({measure}); MoM growth %; YTD total",
+                    "fields": [date_field, measure],
+                    "excel_equivalent": "SUMIFS by period + (Current-Previous)/Previous",
                 },
             }
         )

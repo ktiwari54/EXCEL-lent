@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import { AlertTriangle, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+// useState already imported
 import type { Dataset, TaskSelection } from "@/lib/api";
 import {
   generateAnalysis,
@@ -706,6 +707,47 @@ function AnalysisResultView({ result }: { result: Record<string, unknown> }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      <ExplanationPanel meta={meta} />
+    </div>
+  );
+}
+
+function ExplanationPanel({ meta }: { meta: Record<string, unknown> }) {
+  const [open, setOpen] = useState(false);
+  const exp = (meta.explanation as Record<string, unknown>) || {};
+  const mode = (exp.mode as Record<string, string>) || {};
+  const plan = (meta.calculation_plan as { engine: string }[]) || [];
+  if (!exp.business && !plan.length) return null;
+  return (
+    <div className="card p-4">
+      <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((o) => !o)}>
+        <span className="text-sm font-semibold text-slate-900">Show formula / logic</span>
+        <span className="text-xs text-blue-600">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2 text-sm text-slate-700">
+          <p>
+            <span className="font-semibold">Business: </span>
+            {String(mode.business || exp.business || "—")}
+          </p>
+          <p>
+            <span className="font-semibold">Logic: </span>
+            {String(exp.logic || "—")}
+          </p>
+          {mode.technical && (
+            <p className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800">
+              Technical: {mode.technical}
+            </p>
+          )}
+          {Array.isArray(exp.fields_used) && (
+            <p className="text-xs text-slate-500">Fields: {(exp.fields_used as string[]).join(", ")}</p>
+          )}
+          {plan.length > 0 && (
+            <p className="text-xs text-slate-500">Engines: {plan.map((p) => p.engine).join(" → ")}</p>
+          )}
         </div>
       )}
     </div>
