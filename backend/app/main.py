@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import configure, datasets, process, tasks
+from app.routers import configure, datasets, presets, process, tasks
 
 settings = get_settings()
 
@@ -29,6 +29,7 @@ app.include_router(datasets.router)
 app.include_router(tasks.router)
 app.include_router(configure.router)
 app.include_router(process.router)
+app.include_router(presets.router)
 
 
 @app.get("/")

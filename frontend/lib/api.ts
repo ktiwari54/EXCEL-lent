@@ -403,4 +403,58 @@ export async function generateAnalysis(body: {
   return handle(res);
 }
 
+// ─── One-click presets + export ─────────────────────────────
+
+export type Preset = {
+  id: string;
+  name: string;
+  description: string;
+  audience?: string;
+  task_id: string;
+  icon?: string;
+  color?: string;
+  one_click?: boolean;
+};
+
+export async function listPresets(): Promise<Preset[]> {
+  const res = await safeFetch(url("/api/presets"));
+  const data = await handle<{ presets: Preset[] }>(res);
+  return data.presets;
+}
+
+export async function runOneClickPreset(
+  datasetId: string,
+  presetId: string
+): Promise<Record<string, unknown>> {
+  const res = await safeFetch(url("/api/presets/run"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataset_id: datasetId, preset_id: presetId }),
+  });
+  return handle(res);
+}
+
+export async function exportAnalysisExcel(
+  datasetId: string,
+  result: Record<string, unknown>,
+  title?: string
+): Promise<Blob> {
+  const res = await safeFetch(url("/api/presets/export"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataset_id: datasetId, result, title }),
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try {
+      const body = await res.json();
+      msg = body.detail?.message || body.detail || msg;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(String(msg));
+  }
+  return res.blob();
+}
+
 export { API_URL };

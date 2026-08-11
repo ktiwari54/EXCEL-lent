@@ -36,15 +36,19 @@ import {
   Dataset,
   DatasetListItem,
   InspectResult,
+  Preset,
   TaskSelection,
   deleteDataset,
+  exportAnalysisExcel,
   getDataset,
   healthCheck,
   importFile,
   inspectFile,
   listDatasets,
+  listPresets,
   previewDataset,
   renameDataset,
+  runOneClickPreset,
   setRelationshipStatus,
 } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
@@ -84,6 +88,7 @@ export default function HomePage() {
   const [preselectTaskId, setPreselectTaskId] = useState<string | null>(null);
   const [taskSelection, setTaskSelection] = useState<TaskSelection | null>(null);
   const [generatePayload, setGeneratePayload] = useState<Record<string, unknown> | null>(null);
+  const [presets, setPresets] = useState<Preset[]>([]);
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -96,6 +101,9 @@ export default function HomePage() {
   useEffect(() => {
     healthCheck().then(setApiOk);
     refreshLibrary();
+    listPresets()
+      .then(setPresets)
+      .catch(() => setPresets([]));
     // restore last dataset for Task step after refresh
     const lastId = typeof window !== "undefined" ? sessionStorage.getItem("excellent_active_id") : null;
     if (lastId) {
@@ -107,6 +115,54 @@ export default function HomePage() {
         .catch(() => sessionStorage.removeItem("excellent_active_id"));
     }
   }, [refreshLibrary]);
+
+  async function runOneClick(presetId: string, datasetId?: string) {
+    const id = datasetId || active?.id || library[0]?.id;
+    if (!id) {
+      setError("Import a dataset first, then use one-click templates.");
+      go("upload", "upload");
+      return;
+    }
+    setLoading(true);
+    setLoadingLabel("Building your one-click result…");
+    setError(null);
+    try {
+      if (!active || active.id !== id) {
+        await openDataset(id, false);
+      }
+      const payload = await runOneClickPreset(id, presetId);
+      setGeneratePayload(payload);
+      setView("preparing");
+      setNav("home");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "One-click failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function exportCurrentResult() {
+    const result = (generatePayload?.result as Record<string, unknown>) || null;
+    const dsId = active?.id || (generatePayload?.task_request as { dataset_id?: string })?.dataset_id;
+    if (!result || !dsId) {
+      setError("No analysis result to export yet.");
+      return;
+    }
+    setLoading(true);
+    setLoadingLabel("Exporting Excel report…");
+    try {
+      const blob = await exportAnalysisExcel(dsId, result, String(result.title || "Analysis"));
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `Data_Analyst_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function goToTasks(dataset?: Dataset | null, taskId?: string | null) {
     let ds = dataset || active;
@@ -452,10 +508,13 @@ export default function HomePage() {
           {view === "home" && (
             <HomeView
               libraryCount={library.length}
+              active={active}
+              presets={presets}
               onUpload={() => go("upload", "upload")}
               onLibrary={() => go("library", "sources")}
               onTasks={() => goToTasks()}
-              recent={library.slice(0, 3)}
+              onOneClick={runOneClick}
+              recent={library.slice(0, 5)}
               onOpen={openDataset}
             />
           )}
@@ -589,7 +648,9 @@ export default function HomePage() {
             <PreparingPlaceholder
               payload={generatePayload}
               onBack={() => goToTasks(active)}
-              onConfigure={() => setView("configure")}
+              onConfigure={() => (taskSelection ? setView("configure") : goToTasks(active))}
+              onExport={exportCurrentResult}
+              onHome={() => go("home", "home")}
             />
           )}
 
@@ -630,44 +691,141 @@ function NavBtn({
 
 function HomeView({
   libraryCount,
+  active,
+  presets,
   onUpload,
   onLibrary,
   onTasks,
+  onOneClick,
   recent,
   onOpen,
 }: {
   libraryCount: number;
+  active: Dataset | null;
+  presets: Preset[];
   onUpload: () => void;
   onLibrary: () => void;
   onTasks: () => void;
+  onOneClick: (presetId: string, datasetId?: string) => void;
   recent: DatasetListItem[];
   onOpen: (id: string) => void;
 }) {
+  const hasData = libraryCount > 0;
+  const dsId = active?.id || recent[0]?.id;
+
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Welcome to Data Analyst Engine</h1>
-        <p className="mt-1 text-slate-500">Upload data once. We profile it. Analysis comes next — no Excel skills required.</p>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">One-stop analytics</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
+            For managers &amp; data analysts
+          </h1>
+          <p className="mt-1 max-w-2xl text-slate-500">
+            Import Excel/CSV once. One-click dashboards and reports. Easy dropdowns when you need control. Export any result.
+          </p>
+        </div>
+        {active && (
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+            <p className="text-[11px] font-semibold uppercase text-slate-400">Working dataset</p>
+            <p className="font-semibold text-slate-900">{active.name}</p>
+            <p className="text-xs text-slate-500">
+              {active.rows?.toLocaleString()} rows · Health {active.health?.score ?? "—"}/100
+            </p>
+          </div>
+        )}
       </div>
 
+      {/* Import / library strip */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <button className="card p-5 text-left transition hover:border-blue-300 hover:shadow-md" onClick={onUpload}>
+          <Upload className="h-7 w-7 text-blue-600" />
+          <p className="mt-2 font-bold text-slate-900">Import Excel / CSV</p>
+          <p className="mt-1 text-xs text-slate-500">Drag &amp; drop. Multi-sheet. Auto profile.</p>
+        </button>
+        <button className="card p-5 text-left transition hover:border-blue-300 hover:shadow-md" onClick={onLibrary}>
+          <Table2 className="h-7 w-7 text-emerald-600" />
+          <p className="mt-2 font-bold text-slate-900">My Data Library</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {hasData ? `${libraryCount} dataset(s) ready` : "No files yet — import to begin"}
+          </p>
+        </button>
+        <button
+          className="card p-5 text-left transition hover:border-blue-300 hover:shadow-md disabled:opacity-50"
+          onClick={onTasks}
+          disabled={!hasData}
+        >
+          <Sparkles className="h-7 w-7 text-violet-600" />
+          <p className="mt-2 font-bold text-slate-900">Guided analysis</p>
+          <p className="mt-1 text-xs text-slate-500">Dropdowns &amp; filters for full control.</p>
+        </button>
+      </div>
+
+      {/* One-click templates */}
       <section className="card p-5">
-        <h2 className="text-base font-bold text-slate-900">Get Started in 4 Simple Steps</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          {[
-            { n: "1", title: "Upload Data", desc: "Upload Excel or CSV", active: true, onClick: onUpload, color: "bg-emerald-500" },
-            { n: "2", title: "Choose Task", desc: "What do you want to do?", active: libraryCount > 0, onClick: onTasks, color: "bg-violet-500" },
-            { n: "3", title: "Configure", desc: "Select columns, filters and options", active: false, onClick: () => {}, color: "bg-blue-500" },
-            { n: "4", title: "Get Results", desc: "Analysis, charts and insights", active: false, onClick: () => {}, color: "bg-orange-500" },
-          ].map((s) => (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">One-click for managers</h2>
+            <p className="text-xs text-slate-500">Preset templates — no configuration required.</p>
+          </div>
+          {!hasData && (
+            <button className="btn-primary text-xs" onClick={onUpload}>
+              Import data first
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {(presets.length
+            ? presets
+            : [
+                { id: "one_click_dashboard", name: "One-Click Dashboard", description: "KPIs & trends", color: "bg-teal-600" },
+                { id: "one_click_report", name: "One-Click Report", description: "Executive summary", color: "bg-indigo-600" },
+                { id: "one_click_analyze", name: "Analyze Everything", description: "Full analyst pass", color: "bg-blue-600" },
+                { id: "sales_performance", name: "Sales Performance", description: "Revenue focus", color: "bg-emerald-600" },
+              ]
+          ).map((p) => (
             <button
-              key={s.n}
-              disabled={!s.active}
-              onClick={s.onClick}
+              key={p.id}
+              type="button"
+              disabled={!hasData}
+              onClick={() => onOneClick(p.id, dsId)}
               className={clsx(
-                "step-card text-left",
-                s.active ? "hover:border-blue-300" : "cursor-not-allowed opacity-60"
+                "action-tile text-left disabled:cursor-not-allowed disabled:opacity-50",
+                "hover:border-blue-400"
               )}
             >
+              <div className={clsx("mb-2 flex h-10 w-10 items-center justify-center rounded-xl text-white text-xs font-bold", p.color || "bg-blue-600")}>
+                GO
+              </div>
+              <p className="text-sm font-bold text-slate-900">{p.name}</p>
+              <p className="mt-1 text-xs text-slate-500 line-clamp-2">{p.description}</p>
+              {"audience" in p && p.audience && (
+                <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{p.audience as string}</p>
+              )}
+            </button>
+          ))}
+        </div>
+        {hasData && dsId && (
+          <p className="mt-3 text-xs text-slate-400">
+            Runs on: <span className="font-semibold text-slate-600">{active?.name || recent[0]?.name}</span>
+            {" · "}
+            <button type="button" className="text-blue-600 hover:underline" onClick={onLibrary}>
+              change dataset
+            </button>
+          </p>
+        )}
+      </section>
+
+      <section className="card p-5">
+        <h2 className="text-base font-bold text-slate-900">How it works</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {[
+            { n: "1", title: "Import", desc: "Excel or CSV", onClick: onUpload, active: true, color: "bg-emerald-500" },
+            { n: "2", title: "One-click or guided", desc: "Templates or dropdowns", onClick: hasData ? onTasks : onUpload, active: true, color: "bg-violet-500" },
+            { n: "3", title: "Review results", desc: "KPIs, tables, insights", onClick: hasData ? onTasks : onUpload, active: hasData, color: "bg-blue-500" },
+            { n: "4", title: "Export Excel", desc: "Report ready to share", onClick: hasData ? onTasks : onUpload, active: hasData, color: "bg-orange-500" },
+          ].map((s) => (
+            <button key={s.n} type="button" onClick={s.onClick} className="step-card text-left hover:border-blue-300">
               <div className={clsx("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white", s.color)}>
                 {s.n}
               </div>
@@ -676,46 +834,52 @@ function HomeView({
                   {s.n}. {s.title}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">{s.desc}</p>
-                {!s.active && <p className="mt-1 text-[10px] font-bold uppercase text-slate-400">Coming soon</p>}
               </div>
             </button>
           ))}
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <button className="card p-6 text-left transition hover:border-blue-300 hover:shadow-md" onClick={onUpload}>
-          <Upload className="h-8 w-8 text-blue-600" />
-          <p className="mt-3 text-lg font-bold text-slate-900">Upload Data</p>
-          <p className="mt-1 text-sm text-slate-500">Excel or CSV — we detect sheets, types, roles, and data health.</p>
-        </button>
-        <button className="card p-6 text-left transition hover:border-blue-300 hover:shadow-md" onClick={onLibrary}>
-          <Table2 className="h-8 w-8 text-emerald-600" />
-          <p className="mt-3 text-lg font-bold text-slate-900">My Data</p>
-          <p className="mt-1 text-sm text-slate-500">
-            {libraryCount === 0 ? "No datasets yet" : `${libraryCount} dataset(s) in your library`}
-          </p>
-        </button>
-      </div>
-
       {recent.length > 0 && (
         <section className="card p-5">
-          <h2 className="mb-3 text-sm font-bold text-slate-900">Recent datasets</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900">Your data library</h2>
+            <button type="button" className="text-xs font-semibold text-blue-600" onClick={onLibrary}>
+              View all
+            </button>
+          </div>
           <div className="space-y-2">
             {recent.map((d) => (
-              <button
+              <div
                 key={d.id}
-                className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-blue-50"
-                onClick={() => onOpen(d.id)}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-3"
               >
-                <div>
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(d.id)}>
                   <p className="text-sm font-semibold text-slate-800">{d.name}</p>
                   <p className="text-xs text-slate-500">
                     {d.rows?.toLocaleString()} rows · {d.columns} columns · Health {d.health ?? "—"}
                   </p>
+                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn-primary text-xs"
+                    onClick={() => onOneClick("one_click_dashboard", d.id)}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    onClick={() => onOneClick("one_click_report", d.id)}
+                  >
+                    Report
+                  </button>
+                  <button type="button" className="btn-ghost text-xs" onClick={() => onOpen(d.id)}>
+                    Explore
+                  </button>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-400" />
-              </button>
+              </div>
             ))}
           </div>
         </section>

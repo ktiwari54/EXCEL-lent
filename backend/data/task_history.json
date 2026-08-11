@@ -1,6 +1,109 @@
 {
   "items": [
     {
+      "id": "a5cb6753-d073-427f-86a3-26c11f2a5d41",
+      "dataset_id": "e9329792-0065-4734-94fe-f41c23da8e22",
+      "dataset_name": "s",
+      "task_id": "dashboard",
+      "task_name": "One-Click Dashboard",
+      "category": "One-Click",
+      "configuration": {
+        "name": "One-Click Dashboard",
+        "dataset_id": "e9329792-0065-4734-94fe-f41c23da8e22",
+        "dataset_name": "s",
+        "task_id": "dashboard",
+        "task_name": "Dashboard",
+        "task_category": "Dashboard",
+        "configuration": {
+          "dashboard_type": "sales",
+          "measure": "Revenue",
+          "date_field": "OrderDate",
+          "category": "",
+          "region": ""
+        },
+        "output_type": "dashboard",
+        "status": "ready_for_processing",
+        "engine": "step4_pending",
+        "normalized": {
+          "measure": "Revenue",
+          "aggregation": "sum",
+          "group_by": [],
+          "filters": [],
+          "date_field": "OrderDate",
+          "date_grain": null,
+          "date_range": null,
+          "chart_type": null,
+          "category": null,
+          "limit": null,
+          "sort_direction": "desc",
+          "compare_by": null,
+          "left_value": null,
+          "right_value": null,
+          "comparison_method": null,
+          "rows": [],
+          "columns": null,
+          "actions": null,
+          "duplicate_keys": null,
+          "secondary_dataset_id": null,
+          "lookup_column": null,
+          "return_column": null,
+          "dashboard_type": "sales",
+          "report_type": null
+        },
+        "preset_id": "one_click_dashboard"
+      },
+      "result_ref": null,
+      "timestamp": "2026-08-11T15:42:39.946128+00:00"
+    },
+    {
+      "id": "2f35ea8c-d6bf-444f-8519-44f002a70ad2",
+      "dataset_id": "93b79558-92c2-4f39-b7c8-213b1d19429a",
+      "dataset_name": "SALARY JULY 26 (1)   SALARY JULY 26 (1).csv",
+      "task_id": "dashboard",
+      "task_name": "Dashboard",
+      "category": "Dashboard",
+      "configuration": {
+        "dataset_id": "93b79558-92c2-4f39-b7c8-213b1d19429a",
+        "dataset_name": "SALARY JULY 26 (1)   SALARY JULY 26 (1).csv",
+        "task_id": "dashboard",
+        "task_name": "Dashboard",
+        "task_category": "Dashboard",
+        "objective": "Dashboard",
+        "secondary_dataset_ids": [],
+        "detected_fields": {
+          "measures": [
+            "Item Order",
+            "Debit",
+            "Credit",
+            "Total"
+          ],
+          "dimensions": [
+            "Journal Number",
+            "Journal Number Suffix",
+            "Journal Created By",
+            "Journal ID",
+            "Journal Type",
+            "Journal Entity Type",
+            "Notes",
+            "Location ID",
+            "Location Name",
+            "Project Name",
+            "Account",
+            "Currency",
+            "Description",
+            "LINEITEM.TAG.Manohar Chauhan"
+          ],
+          "dates": [
+            "Journal Date"
+          ]
+        },
+        "notes": null,
+        "stage": "configure"
+      },
+      "result_ref": null,
+      "timestamp": "2026-08-10T13:53:56.671161+00:00"
+    },
+    {
       "id": "a7c8e1f9-2718-40e0-9578-0b5a4c9ef742",
       "dataset_id": "79044cfd-1894-45d8-88d8-d4a01064e45d",
       "dataset_name": "sales",

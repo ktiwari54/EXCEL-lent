@@ -256,6 +256,12 @@ export function TaskSelectionView({
           </div>
         </div>
 
+        {/* Manager tip */}
+        <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+          <strong>Tip for managers:</strong> Prefer <em>Home → One-click</em> for Dashboard / Report with zero setup.
+          Use this screen when you want guided dropdowns and filters.
+        </div>
+
         {/* Recommendations */}
         {recs.length > 0 && (
           <section className="card p-5">

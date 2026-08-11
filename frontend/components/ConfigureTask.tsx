@@ -542,28 +542,51 @@ export function PreparingPlaceholder({
   payload,
   onBack,
   onConfigure,
+  onExport,
+  onHome,
 }: {
   payload: Record<string, unknown>;
   onBack: () => void;
   onConfigure: () => void;
+  onExport?: () => void;
+  onHome?: () => void;
 }) {
   const tr = (payload.task_request as Record<string, unknown>) || {};
   const ph = (payload.placeholder as Record<string, string>) || {};
   const result = payload.result as Record<string, unknown> | undefined;
   const meta = (result?.meta as Record<string, unknown>) || {};
   const engines = (meta.engines_used as string[]) || [];
+  const preset = payload.preset as { name?: string } | undefined;
 
   // If BI pipeline returned a result, show it
   if (result && payload.status === "completed") {
     return (
       <div className="mx-auto max-w-[1100px] space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <button className="btn-secondary" onClick={onConfigure}>
-            Edit configuration
-          </button>
-          <button className="btn-secondary" onClick={onBack}>
-            Choose another task
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            {preset?.name && (
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">One-click · {preset.name}</p>
+            )}
+            <p className="text-sm text-slate-500">Results ready for managers and analysts</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onExport && (
+              <button className="btn-primary" onClick={onExport}>
+                Export Excel report
+              </button>
+            )}
+            <button className="btn-secondary" onClick={onConfigure}>
+              Fine-tune with dropdowns
+            </button>
+            <button className="btn-secondary" onClick={onBack}>
+              More analysis
+            </button>
+            {onHome && (
+              <button className="btn-ghost" onClick={onHome}>
+                Home
+              </button>
+            )}
+          </div>
         </div>
         {engines.length > 0 && (
           <div className="flex flex-wrap gap-2 text-[11px]">
